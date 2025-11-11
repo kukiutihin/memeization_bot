@@ -2,7 +2,7 @@ import logging
 from telegram import InlineQueryResultPhoto, Update
 from telegram.ext import Application, InlineQueryHandler, ContextTypes
 
-BOT_TOKEN = "8458529948:AAEmS-rVnzjTFeh8Ri5QVefx_I9dAEnRPO8"
+BOT_TOKEN = "Token Bota"
 
 YOUR_MEMES = [
     {
