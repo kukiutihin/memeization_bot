@@ -19,6 +19,8 @@ class Database:
                 )
             ''')
 
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_users ON users(id)")
+
             cur.execute('''
                 CREATE TABLE IF NOT EXISTS pics (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,6 +30,9 @@ class Database:
                     FOREIGN KEY (user_id) REFERENCES users (id)
                 )
             ''')
+
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_pics_id ON pics(id)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_pics_user ON pics(user_id)")
 
             cur.execute('''
                 CREATE TABLE IF NOT EXISTS fav_pics (
@@ -39,12 +44,17 @@ class Database:
                 )
             ''')
 
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_fav_pics_user ON fav_pics(user_id)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_fav_pics_pic ON fav_pics(pic_id)")
+
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS tags (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     tag_str TEXT UNIQUE NOT NULL
                 )
             """)
+
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_tags_id ON tags(id)")
 
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS pics_tags (
@@ -56,13 +66,8 @@ class Database:
                 )
             """)
 
-            cur.execute("""
-                CREATE INDEX IF NOT EXISTS idx_pics_tags_pic_id ON pics_tags(pic_id)
-            """)
-
-            cur.execute("""
-                CREATE INDEX IF NOT EXISTS idx_pics_tags_tag_id ON pics_tags(tag_id)
-            """)
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_pics_tags_pic_id ON pics_tags(pic_id)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_pics_tags_tag_id ON pics_tags(tag_id)")
 
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS ghosts (
@@ -72,13 +77,8 @@ class Database:
                 );
             """)
 
-            cur.execute("""
-                CREATE INDEX IF NOT EXISTS idx_ghosts_tag ON ghosts(tag)
-            """)
-
-            cur.execute("""
-                CREATE INDEX IF NOT EXISTS idx_ghosts_ghost ON ghosts(his_ghost)
-            """)
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_ghosts_tag ON ghosts(tag)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_ghosts_ghost ON ghosts(his_ghost)")
 
             conn.commit()
 
