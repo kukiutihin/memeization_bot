@@ -1,38 +1,38 @@
 import logging
-from bd2 import Database
+from db import Database
 from telegram import InlineQueryResultPhoto, Update
 from telegram.ext import Application, InlineQueryHandler, ContextTypes, CommandHandler
 
-BOT_TOKEN = "Token Bota"
+BOT_TOKEN = "Bot Token"
 
 db = Database()
 
-YOUR_MEMES = [
-    {
-        "id": "2",
-        "title": "eshkeree", 
-        "description": "Уильям Фредерик",
-        "photo_url": "https://i.ibb.co/xqqVWPD7/flat-750x-075-f-pad-750x1000-f8f8f8.jpg",
-        "thumbnail_url": "https://i.ibb.co/xqqVWPD7/flat-750x-075-f-pad-750x1000-f8f8f8.jpg",
-        "tags": ["программист", "it", "код", "работа"]
-    },
-    {
-        "id": "3",
-        "title": "Neco Arc", 
-        "description": "Guranyaaaaa",
-        "photo_url": "https://i.ibb.co/S4p6VFXp/s-TTNYry-k-Y4.jpg",
-        "thumbnail_url": "https://i.ibb.co/S4p6VFXp/s-TTNYry-k-Y4.jpg",
-        "tags": ["кофе", "утро", "программист", "it"]
-    },
-    {
-        "id": "4",
-        "title": "Cho", 
-        "description": "Lain",
-        "photo_url": "https://i.ibb.co/WhpHnv7/Lainnizm.jpg",
-        "thumbnail_url": "https://i.ibb.co/WhpHnv7/Lainnizm.jpg",
-        "tags": ["собака", "dog", "веселая", "животные"]
-    }
-]
+# YOUR_MEMES = [
+#     {
+#         "id": "2",
+#         "title": "eshkeree", 
+#         "description": "Уильям Фредерик",
+#         "photo_url": "https://i.ibb.co/xqqVWPD7/flat-750x-075-f-pad-750x1000-f8f8f8.jpg",
+#         "thumbnail_url": "https://i.ibb.co/xqqVWPD7/flat-750x-075-f-pad-750x1000-f8f8f8.jpg",
+#         "tags": ["программист", "it", "код", "работа"]
+#     },
+#     {
+#         "id": "3",
+#         "title": "Neco Arc", 
+#         "description": "Guranyaaaaa",
+#         "photo_url": "https://i.ibb.co/S4p6VFXp/s-TTNYry-k-Y4.jpg",
+#         "thumbnail_url": "https://i.ibb.co/S4p6VFXp/s-TTNYry-k-Y4.jpg",
+#         "tags": ["кофе", "утро", "программист", "it"]
+#     },
+#     {
+#         "id": "4",
+#         "title": "Cho", 
+#         "description": "Lain",
+#         "photo_url": "https://i.ibb.co/WhpHnv7/Lainnizm.jpg",
+#         "thumbnail_url": "https://i.ibb.co/WhpHnv7/Lainnizm.jpg",
+#         "tags": ["собака", "dog", "веселая", "животные"]
+#     }
+# ]
 
 # === ФУНКЦИИ ДЛЯ РАБОТЫ С БАЗОЙ ДАННЫХ ===
 
@@ -41,7 +41,8 @@ def search_memes_in_db(tg_id: int, search_query: str):
     search_tags = [tag.strip() for tag in search_query.split() if tag.strip()]
     
     try:
-        favs_results, global_results = db.find(tg_id, search_tags)
+        global_results = db.find(tg_id, search_tags,0.1,10,10)
+        # print(global_results)
         return global_results
     except Exception as e:
         print(f"Ошибка поиска в БД: {e}")
@@ -50,7 +51,7 @@ def search_memes_in_db(tg_id: int, search_query: str):
 def add_meme_to_db(tg_id: int, photo_url: str, tags: list[str], is_private: bool = False):
     """Добавляет мем в базу данных"""
     try:
-        db.add_to(tg_id, is_private, photo_url, tags)
+        db.add_to(tg_id, is_private, photo_url, tags,10)
         return True
     except Exception as e:
         print(f"Ошибка добавления мема в БД: {e}")
@@ -123,32 +124,36 @@ async def inline_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f"Запрос: '{query}' от {username} (ID: {tg_id})")
     
     db_results = search_memes_in_db(tg_id, query)
-    
-    photo_urls_mapping = {meme["id"]: meme["photo_url"] for meme in YOUR_MEMES}
-    
+    print(db_results)
+    # Создаем маппинг pic_id -> photo_url (временное решение)
+    # photo_urls_mapping = {meme["id"]: meme["photo_url"] for meme in YOUR_MEMES}
+    # print(photo_urls_mapping)
     db_memes = []
     for pic_id in db_results:
-        # нужно получать данные мема из БД
-        # cейчас используем заглушку
+        # В реальном приложении здесь нужно получать данные мема из БД
+        # Сейчас используем заглушку
         db_memes.append({
-            "id": str(pic_id),
-            "title": f"Мем из БД {pic_id}",
+            "id": str(pic_id[0]),
+            "title": f"Мем из БД {pic_id[0]}",
             "description": "Найден в базе данных",
-            "photo_url": photo_urls_mapping.get(str(pic_id), "https://i.ibb.co/WhpHnv7/Lainnizm.jpg"),
-            "thumbnail_url": photo_urls_mapping.get(str(pic_id), "https://i.ibb.co/WhpHnv7/Lainnizm.jpg"),
+            # "photo_url": photo_urls_mapping.get(str(pic_id), "https://i.ibb.co/WhpHnv7/Lainnizm.jpg"),
+            # "thumbnail_url": photo_urls_mapping.get(str(pic_id), "https://i.ibb.co/WhpHnv7/Lainnizm.jpg"),
+            "photo_url": pic_id[1],
+            "thumbnail_url": pic_id[1],
             "tags": ["из_базы"]
         })
     
-    if not db_memes:
-        print("В БД ничего не найдено, используем локальный поиск")
-        found_memes = search_memes_by_tags(query, YOUR_MEMES, max_results=10)
-        if not found_memes and query:
-            found_memes = search_memes_by_category(query, YOUR_MEMES)
-        if not found_memes:
-            found_memes = YOUR_MEMES[:3]
-    else:
-        found_memes = db_memes
-    
+    # if not db_memes:
+    #     print("В БД ничего не найдено, используем локальный поиск")
+    #     found_memes = search_memes_by_tags(query, YOUR_MEMES, max_results=10)
+    #     if not found_memes and query:
+    #         found_memes = search_memes_by_category(query, YOUR_MEMES)
+    #     if not found_memes:
+    #         found_memes = YOUR_MEMES[:3]
+    # else:
+    #     found_memes = db_memes
+    found_memes = db_memes
+    # Создаем результаты для tg
     results = []
     for meme in found_memes:
         results.append(
@@ -217,6 +222,7 @@ async def add_meme_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Укажите хотя бы один тег")
             return
         
+        # Проверяем URL (базовая валидация)
         if not (photo_url.startswith('http://') or photo_url.startswith('https://')):
             await update.message.reply_text("Неверный формат URL. Должен начинаться с http:// или https://")
             return
@@ -246,9 +252,9 @@ def _find_meme_by_id(meme_id: int):
     """Находит мем по ID в базе данных"""
     try:
         # ищем в локальном списке
-        for meme in YOUR_MEMES:
-            if str(meme_id) == meme["id"]:
-                return meme
+        # for meme in YOUR_MEMES:
+        #     if str(meme_id) == meme["id"]:
+        #         return meme
         
         # здесь должен быть запрос к БД
         return None
@@ -279,20 +285,20 @@ async def add_meme_from_id_command(update: Update, context: ContextTypes.DEFAULT
         tg_id = update.effective_user.id
         username = update.effective_user.username or "Unknown"
         
-        meme = _find_meme_by_id(meme_id)
+        # meme = _find_meme_by_id(meme_id)
         
-        if not meme:
-            await update.message.reply_text(f"Мем с ID {meme_id} не найден")
-            return
+        # if not meme:
+        #     await update.message.reply_text(f"Мем с ID {meme_id} не найден")
+        #     return
         
         success = add_to_favorites(tg_id, meme_id)
-        
-        caption = (
-            f"{meme['title']}\n"
-            f"{meme['description']}\n"
-            f"Теги: {', '.join(meme['tags'])}\n"
-            f"ID: {meme_id}\n\n"
-        )
+        caption = ""
+        # caption = (
+        #     f"{meme['title']}\n"
+        #     f"{meme['description']}\n"
+        #     f"Теги: {', '.join(meme['tags'])}\n"
+        #     f"ID: {meme_id}\n\n"
+        # )
         
         if success:
             caption += "Добавлено в избранное"
@@ -300,10 +306,11 @@ async def add_meme_from_id_command(update: Update, context: ContextTypes.DEFAULT
         else:
             caption += "Ошибка при добавлении в избранное"
         
-        await update.message.reply_photo(
-            photo=meme['photo_url'],
-            caption=caption
-        )
+        # await update.message.reply_photo(
+        #     # photo=meme['photo_url'],
+        #     caption=caption
+        # )
+        await update.message.reply_text(caption)
             
     except Exception as e:
         await update.message.reply_text(f"Ошибка: {str(e)}")
@@ -320,7 +327,7 @@ def main():
     app.add_handler(InlineQueryHandler(inline_handler))
     
     print("=" * 50)
-    print("Бот запущен")
+    print("Бот с единой БД запущен")
     print("Команды: /start, /addmeme, /fav")
     print("Инлайн: @memeizat_bot[теги]")
     print("=" * 50)
