@@ -124,7 +124,7 @@ class Database:
         return [row[0] for row in cur.fetchall()]
         
 
-    def _add_to_table(self, tg_id: int, is_private: bool, storage: str, tags: list[str], conn: sqlite3.Connection) -> int:
+    def _add_to_table(self, tg_id: int, is_private: bool, storage: str, tags: list[str], conn: sqlite3.Connection):
         cur = conn.cursor()
         
         user_id = self._get_user_id(tg_id=tg_id, conn=conn)
@@ -143,7 +143,6 @@ class Database:
             )
 
         conn.commit()
-        return pic_id
 
 
     def _get_ghosts_for_tag(self, tag_id: int, limit: int, conn: sqlite3.Connection) -> list[int]:
@@ -181,8 +180,8 @@ class Database:
 
     def add_to(self, tg_id: int, is_private: bool, storage: str, tags: list[str], limit: int):
         with self._connect() as conn:
-            pic_id = self._add_to_table(tg_id, is_private, storage, tags, conn)
-            self._update_tags_ghosts(pic_id, tags, limit, conn)
+            self._add_to_table(tg_id, is_private, storage, tags, conn)
+            self._update_tags_ghosts(tags, limit, conn)
 
 
     def add_from(self, tg_id: int, pic_id: int):
@@ -216,15 +215,17 @@ class Database:
             """, (to_uid, from_uid))
 
 
-    def is_private(self, pid: int) -> bool:
+    def permission_denied(self, tg_id: int, pic_id: int) -> bool:
         with self._connect() as conn:
             cur = conn.cursor()
 
+            user_id = self._get_user_id(tg_id, conn=conn)
+
             cur.execute("""
-                SELECT is_private
+                SELECT (is_private = 1 AND user_id != ?)
                 FROM pics
-                WHERE id = ?
-            """, (pid, ))
+                WHERE id = ?;
+            """, (user_id, pic_id))
   
             return bool(cur.fetchone()[0])
 
