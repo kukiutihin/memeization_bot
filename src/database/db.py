@@ -138,7 +138,7 @@ class Database:
         for tag in tags:
             tag_id = self._get_tag_id(tag, conn)
             cur.execute(
-                "INSERT INTO OR IGNORE pics_tags (pic_id, tag_id) VALUES (?, ?)",
+                "INSERT OR IGNORE INTO pics_tags (pic_id, tag_id) VALUES (?, ?)",
                 (pic_id, tag_id)
             )
 
