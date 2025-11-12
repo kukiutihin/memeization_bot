@@ -65,22 +65,19 @@ class Database:
             """)
 
             cur.execute("""
-                CREATE TABLE IF NOT EXISTS tags_match (
-                    tag_a INTEGER NOT NULL REFERENCES tags(id),
-                    tag_b INTEGER NOT NULL REFERENCES tags(id),
-                    match FLOAT DEFAULT 0,
-                    PRIMARY KEY (tag_a, tag_b),
-                    CHECK (tag_a < tag_b)
+                CREATE TABLE IF NOT EXISTS ghosts (
+                    tag INTEGER NOT NULL REFERENCES tags(id),
+                    his_ghost INTEGER NOT NULL REFERENCES tags(id),
+                    PRIMARY KEY (tag, his_ghost)
                 );
             """)
 
             cur.execute("""
-                CREATE TABLE IF NOT EXISTS ghosts (
-                    tag INTEGER NOT NULL REFERENCES tags(id),
-                    his_ghost INTEGER NOT NULL REFERENCES tags(id),
-                    PRIMARY KEY (tag, his_ghost),
-                    CHECK (tag < his_ghost)
-                );
+                CREATE INDEX IF NOT EXISTS idx_ghosts_tag ON ghosts(tag)
+            """)
+
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_ghosts_ghost ON ghosts(his_ghost)
             """)
 
             conn.commit()
@@ -114,9 +111,20 @@ class Database:
         cur.execute("INSERT INTO tags (tag_str) VALUES (?)", (tag,))
         conn.commit()    
         return cur.lastrowid
+    
 
+    def _get_pic_tags(self, pic_id: int, conn: sqlite3.Connection) -> list[str]:
+        cur = conn.cursor()
+        cur.execute("""
+                SELECT tag_id
+                FROM pics_tags
+                WHERE pic_id = ?
+            """, (pic_id,))
+        
+        return [row[0] for row in cur.fetchall()]
+        
 
-    def _add_to_table(self, tg_id: int, is_private: bool, storage: str, tags: list[str], conn: sqlite3.Connection):
+    def _add_to_table(self, tg_id: int, is_private: bool, storage: str, tags: list[str], conn: sqlite3.Connection) -> int:
         cur = conn.cursor()
         
         user_id = self._get_user_id(tg_id=tg_id, conn=conn)
@@ -135,32 +143,10 @@ class Database:
             )
 
         conn.commit()
+        return pic_id
 
 
-    def _update_tags_match(self, ghosts_a: list[int], ghosts_b: list[int], conn: sqlite3.Connection):
-        cur = conn.cursor()
-
-        set_a = set(ghosts_a)
-        set_b = set(ghosts_b)
-
-        intersection = len(set_a & set_b)
-        union = len(set_a | set_b)
-        similarity = intersection / union if union != 0 else 0.0
-
-        for tag_a in set_a:
-            for tag_b in set_b:
-                if tag_a == tag_b:
-                    continue
-
-                t1, t2 = sorted([tag_a, tag_b])
-
-                cur.execute("""
-                    INSERT INTO tags_match (tag_a, tag_b, match)
-                    VALUES (?, ?, ?)
-                """, (t1, t2, similarity))
-
-
-    def _get_ghosts_for_tag(self, tag_id: int, conn: sqlite3.Connection, limit: int) -> list[int]:
+    def _get_ghosts_for_tag(self, tag_id: int, limit: int, conn: sqlite3.Connection) -> list[int]:
         cur = conn.cursor()
 
         cur.execute("""
@@ -173,42 +159,30 @@ class Database:
             LIMIT ?
         """, (tag_id, tag_id, limit))
 
-        return [row[0] for row in cur.fetchall()]
+        return [row[0] for row in cur.fetchall()] + [tag_id]
 
 
     def _rewrite_ghosts_for_tag(self, tag_id: int, ghosts: list[int], conn: sqlite3.Connection):
         cur = conn.cursor()
-        cur.execute("DELETE FROM ghosts WHERE tag = ? OR his_ghost = ?", (tag_id, tag_id))
+        cur.execute("DELETE FROM ghosts WHERE tag = ?", (tag_id,))
 
         for ghost_id in ghosts:
-            a, b = sorted([tag_id, ghost_id])
-            cur.execute("INSERT OR IGNORE INTO ghosts(tag, his_ghost) VALUES (?, ?)", (a, b))
-
+            cur.execute("INSERT OR IGNORE INTO ghosts(tag, his_ghost) VALUES (?, ?)", (tag_id, ghost_id))
     
-    def _rewrite_tags(self, tags: list[str], conn: sqlite3.Connection, limit: int):
-        ghost_cache = {}
-
+    
+    def _update_tags_ghosts(self, tags: list[str], limit: int, conn: sqlite3.Connection):
         for tag_str in tags:
-            tag_id = self._get_tag_id(tag=tag_str, conn=conn)
-            ghosts = self._get_ghosts_for_tag(tag_id, conn, limit)
-            ghost_cache[tag_id] = ghosts
-
+            tag_id = self._get_tag_id(tag_str, conn)
+            ghosts = self._get_ghosts_for_tag(tag_id, limit, conn)
             self._rewrite_ghosts_for_tag(tag_id, ghosts, conn)
-
-        for a, ghosts_a in ghost_cache.items():
-            for b, ghosts_b in ghost_cache.items():
-                if a >= b:
-                    continue
-                
-                self._update_tags_match(ghosts_a, ghosts_b, conn)
 
         conn.commit()
 
 
-    def add_to(self, tg_id: int, is_private: bool, storage: str, tags: list[str]):
+    def add_to(self, tg_id: int, is_private: bool, storage: str, tags: list[str], limit: int):
         with self._connect() as conn:
-            self._add_to_table(tg_id, is_private, storage, tags, conn)
-            self._rewrite_tags(tags, conn)
+            pic_id = self._add_to_table(tg_id, is_private, storage, tags, conn)
+            self._update_tags_ghosts(pic_id, tags, limit, conn)
 
 
     def add_from(self, tg_id: int, pic_id: int):
@@ -217,10 +191,13 @@ class Database:
 
             user_id = self._get_user_id(tg_id=tg_id, conn=conn)
 
-            cur.execute(
-                "INSERT INTO fav_pics (user_id, pic_id) VALUES (?, ?)",
-                (user_id, pic_id)
-            )
+            cur.execute("""
+                    INSERT INTO fav_pics (user_id, pic_id)
+                    SELECT ?, ?
+                    FROM pics
+                    WHERE pic_id = ?
+                    AND (is_private = 0 OR user_id = ?);
+                """, (user_id, pic_id, pic_id, user_id))
 
             conn.commit()
 
@@ -248,127 +225,89 @@ class Database:
                 FROM pics
                 WHERE id = ?
             """, (pid, ))
-
-            entry = cur.fetchone()          
-
-            return bool(entry[0])
+  
+            return bool(cur.fetchone()[0])
 
 
-    def _get_pic_tags(self, pic_id: int, conn: sqlite3.Connection) -> set[int]:
+    def _find_favs(self, user_id: int, tags: list[int], conn: sqlite3.Connection) -> list[int]:
         cur = conn.cursor()
-        cur.execute("SELECT tag_id FROM pics_tags WHERE pic_id = ?", (pic_id,))
-
-        return {row[0] for row in cur.fetchall()}
-
-
-    def _expand_tags_with_ghosts(self, tags: set[int], conn: sqlite3.Connection) -> set[int]:
         if not tags:
-            return set()
-        
-        cur = conn.cursor()
+            cur.execute(f"""
+                    SELECT fp.pic_id
+                    FROM fav_pics fp
+                    WHERE fp.user_id = ?
+                """, (user_id,))
+            
+            return [row[0] for row in cur.fetchall()]
+
         cur.execute(f"""
-            SELECT tag, his_ghost FROM ghosts
-            WHERE tag IN ({','.join('?'*len(tags))}) 
-            OR his_ghost IN ({','.join('?'*len(tags))})
-        """, tuple(tags)*2)
-        ghost_rows = cur.fetchall()
+            SELECT pt.pic_id, COUNT(*) as matches
+            FROM fav_pics fp
+            JOIN pics_tags pt ON fp.pic_id = pt.pic_id
+            WHERE fp.user_id = ?
+            AND pt.tag_id IN ({','.join('?'*len(tags))})
+            GROUP BY pt.pic_id
+            ORDER BY matches DESC
+        """, (user_id, *tags))
 
-        expanded = set(tags)
-        for a, b in ghost_rows:
-            if a in expanded or b in expanded:
-                expanded.update([a, b])
+        return [row[0] for row in cur.fetchall()]
+    
 
-        return expanded
+    def _jaccard_similarity(self, ghost_a: list[int], ghost_b: set[int]) -> float:
+        set_a = set(ghost_a)
+        set_b = set(ghost_b)
 
-
-    def _jaccard_similarity(self, set1: set[int], set2: set[int]) -> float:
-        if not set1 and not set2:
+        if not set_a and not set_b:
             return 0.0
-        intersection = set1 & set2
-        union = set1 | set2
+        intersection = set_a & set_b
+        union = set_a | set_b
 
         return len(intersection) / len(union)
 
 
-    def _match_tags_pic(self, pic_id: int, tags: list[int]) -> float:
-        with self._connect() as conn:
-            if not tags:
-                return 0.0
+    def _get_pic_ghosts(self, pic_id: int, limit: int, conn: sqlite3.Connection) -> set[int]:
+        all_ghosts = []
+        tags = self._get_pic_tags(pic_id, conn)
+        for tag in tags:
+            ghosts = self._get_ghosts_for_tag(tag, limit, conn)
+            all_ghosts += ghosts
 
-            pic_tags = self._get_pic_tags(pic_id)
-            if not pic_tags:
-                return 0.0
-
-            pic_tags_expanded = self._expand_tags_with_ghosts(pic_tags, conn)
-            tags_expanded = self._expand_tags_with_ghosts(set(tags), conn)
-
-            return self._jaccard_similarity(pic_tags_expanded, tags_expanded)
+        return all_ghosts
 
 
-    def _find_favs(self, user_id: int, tags: list[int]) -> list[int]:
+    def _find_global(self, tags: list[int], threshold: float, recommendations_len: int, limit:int, conn: sqlite3.Connection) -> list[int]:
         if not tags:
             return []
 
-        with self._connect() as conn:
-            cur = conn.cursor()
-            q_marks = ",".join("?" for _ in tags)
+        cur = conn.cursor()
 
-            cur.execute(f"""
-                SELECT pt.pic_id, COUNT(*) as matches
-                FROM fav_pics fp
-                JOIN pics_tags pt ON fp.pic_id = pt.pic_id
-                WHERE fp.user_id = ?
-                AND pt.tag_id IN ({q_marks})
-                GROUP BY pt.pic_id
-                ORDER BY matches DESC
-            """, (user_id, *tags))
+        result = []
+        cur.execute("SELECT id FROM pics ORDER BY RANDOM()")
+        all_pics = [r[0] for r in cur.fetchall()]
 
-            return cur.fetchall()
+        for pic_id in all_pics:
+            pic_tags = self._get_pic_ghosts(pic_id, limit, conn)
+            score = self._jaccard_similarity(tags, pic_tags)
+            if score >= threshold:
+                result.append(pic_id)
+                if len(result) >= recommendations_len:
+                    break
 
-
-    def _find_global(self, tags: list[int], threshold: float, need: int, batch_size: int) -> list[int]: # TODO threshold, need, batch_size in config
-        if not tags:
-            return []
-
-        with self._connect() as conn:
-            cur = conn.cursor()
-
-            result = []
-
-            while len(result) < need:
-                cur.execute("""
-                    SELECT id
-                    FROM pics
-                    ORDER BY RANDOM()
-                    LIMIT ?
-                """, (batch_size,))
-
-                batch = [r[0] for r in cur.fetchall()]
-                if not batch:
-                    break  
-
-                for pic_id in batch:
-                    score = self._match_tags_pic(pic_id, tags)
-                    if score >= threshold:
-                        result.append(pic_id)
-                        if len(result) >= need:
-                            break
-
-            return result
+        return result
 
 
-    def find(self, tg_id: int, tags: list[str]):
+    def find(self, tg_id: int, tags: list[str], threshold: float, recommendations_len: int, limit: int) -> list[int]:
         with self._connect() as conn:
             user_id = self._get_user_id(tg_id, conn)
 
             tag_ids = []
             for tag in tags:
-                tag_id = self._get_tag_id(tag, conn)
-                if tag_id is None:
-                    return [], [] 
-                tag_ids.append(tag_id)
+                if not self._tag_exists(tag, conn):
+                    return []
+                
+                tag_ids.append(self._get_tag_id(tag, conn))
 
-        favs = self._find_favs(user_id, tag_ids)
-        global_sim = self._find_global(tag_ids)
+            favs = self._find_favs(user_id, tag_ids, conn)
+            global_sim = self._find_global(tag_ids, threshold, recommendations_len, limit, conn)
 
-        return favs, global_sim
+        return favs + global_sim
