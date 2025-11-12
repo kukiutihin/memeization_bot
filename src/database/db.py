@@ -195,7 +195,7 @@ class Database:
                     INSERT INTO fav_pics (user_id, pic_id)
                     SELECT ?, ?
                     FROM pics
-                    WHERE pic_id = ?
+                    WHERE id = ?
                     AND (is_private = 0 OR user_id = ?);
                 """, (user_id, pic_id, pic_id, user_id))
 
