@@ -278,14 +278,23 @@ class Database:
         return list(set(all_ghosts))
 
 
-    def _find_global(self, tags: list[int], threshold: float, recommendations_len: int, limit:int, conn: sqlite3.Connection) -> list[int]:
+    def _find_global(self, user_id: int, tags: list[int], threshold: float, recommendations_len: int, limit:int, conn: sqlite3.Connection) -> list[int]:
         if not tags:
             return []
 
         cur = conn.cursor()
 
         result = []
-        cur.execute("SELECT id, storage FROM pics ORDER BY RANDOM()")
+        cur.execute("""
+            SELECT p.id, p.storage
+            FROM pics p
+            WHERE p.id NOT IN (
+                SELECT pic_id
+                FROM fav_pics
+                WHERE user_id = ?
+            )
+            ORDER BY RANDOM()
+        """, (user_id,))
         all_pics = [(r[0], r[1]) for r in cur.fetchall()]
 
         for pic_id, pic_url in all_pics:
@@ -311,6 +320,6 @@ class Database:
                 tag_ids.append(self._get_tag_id(tag, conn))
 
             favs = self._find_favs(user_id, tag_ids, conn)
-            global_sim = self._find_global(tag_ids, threshold, recommendations_len, limit, conn)
+            global_sim = self._find_global(user_id, tag_ids, threshold, recommendations_len, limit, conn)
 
         return favs + global_sim
