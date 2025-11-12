@@ -138,7 +138,7 @@ class Database:
         for tag in tags:
             tag_id = self._get_tag_id(tag, conn)
             cur.execute(
-                "INSERT INTO pics_tags (pic_id, tag_id) VALUES (?, ?)",
+                "INSERT INTO OR IGNORE pics_tags (pic_id, tag_id) VALUES (?, ?)",
                 (pic_id, tag_id)
             )
 
@@ -191,7 +191,7 @@ class Database:
             user_id = self._get_user_id(tg_id=tg_id, conn=conn)
 
             cur.execute("""
-                    INSERT INTO fav_pics (user_id, pic_id)
+                    INSERT OR IGNORE INTO fav_pics (user_id, pic_id)
                     SELECT ?, ?
                     FROM pics
                     WHERE id = ?
@@ -234,24 +234,26 @@ class Database:
         cur = conn.cursor()
         if not tags:
             cur.execute(f"""
-                    SELECT fp.pic_id
+                    SELECT fp.pic_id, p.storage
                     FROM fav_pics fp
+                    JOIN pics p ON fp.pic_id = p.id
                     WHERE fp.user_id = ?
                 """, (user_id,))
             
-            return [row[0] for row in cur.fetchall()]
+            return [(row[0], row[1]) for row in cur.fetchall()]
 
         cur.execute(f"""
-            SELECT pt.pic_id, COUNT(*) as matches
+            SELECT pt.pic_id, p.storage, COUNT(*) as matches
             FROM fav_pics fp
             JOIN pics_tags pt ON fp.pic_id = pt.pic_id
+            JOIN pics p ON pt.pic_id = p.id
             WHERE fp.user_id = ?
             AND pt.tag_id IN ({','.join('?'*len(tags))})
             GROUP BY pt.pic_id
             ORDER BY matches DESC
         """, (user_id, *tags))
 
-        return [row[0] for row in cur.fetchall()]
+        return [(row[0], row[1]) for row in cur.fetchall()]
     
 
     def _jaccard_similarity(self, ghost_a: list[int], ghost_b: set[int]) -> float:
@@ -273,7 +275,7 @@ class Database:
             ghosts = self._get_ghosts_for_tag(tag, limit, conn)
             all_ghosts += ghosts
 
-        return all_ghosts
+        return list(set(all_ghosts))
 
 
     def _find_global(self, tags: list[int], threshold: float, recommendations_len: int, limit:int, conn: sqlite3.Connection) -> list[int]:
@@ -283,14 +285,14 @@ class Database:
         cur = conn.cursor()
 
         result = []
-        cur.execute("SELECT id FROM pics ORDER BY RANDOM()")
-        all_pics = [r[0] for r in cur.fetchall()]
+        cur.execute("SELECT id, storage FROM pics ORDER BY RANDOM()")
+        all_pics = [(r[0], r[1]) for r in cur.fetchall()]
 
-        for pic_id in all_pics:
+        for pic_id, pic_url in all_pics:
             pic_tags = self._get_pic_ghosts(pic_id, limit, conn)
             score = self._jaccard_similarity(tags, pic_tags)
             if score >= threshold:
-                result.append(pic_id)
+                result.append((pic_id, pic_url))
                 if len(result) >= recommendations_len:
                     break
 
