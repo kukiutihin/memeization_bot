@@ -1,20 +1,21 @@
-from src.bot.database_calls import search_memes_in_db
+from bot.database_calls import search_memes_in_db
 
 from telegram import InlineQueryResultPhoto, Update
 from telegram.ext import ContextTypes
 
+from database.db import Database
 
 # === ОСНОВНОЙ ОБРАБОТЧИК ===
 
-async def inline_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def inline_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Database, required_match: float, recs_len: int, ghosts: int):
     query = update.inline_query.query
     tg_id = update.inline_query.from_user.id
     username = update.inline_query.from_user.username or "Unknown"
     
     print(f"Запрос: '{query}' от {username} (ID: {tg_id})")
     
-    db_results = search_memes_in_db(tg_id, query)
-    print(db_results)
+    db_results = search_memes_in_db(tg_id, query, db, required_match, recs_len, ghosts)
+    # print(db_results)
     # Создаем маппинг pic_id -> photo_url (временное решение)
     # photo_urls_mapping = {meme["id"]: meme["photo_url"] for meme in YOUR_MEMES}
     # print(photo_urls_mapping)
