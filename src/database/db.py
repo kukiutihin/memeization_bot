@@ -372,3 +372,17 @@ class Database:
         global_sim = self._find_global(tag_ids)
 
         return favs, global_sim
+
+
+    def remove_fav(self, tg_id, pid):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                DELETE FROM fav_pics
+                WHERE user_id = ? AND pic_id = ?
+                """,
+                (self._get_user_id(tg_id, conn), pid)
+            )
+        conn.commit()
+
