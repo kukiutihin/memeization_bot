@@ -1,4 +1,4 @@
-from src.database.db import Database
+from database.db import Database
 
 # === FUNCTIONS FOR WORKING WITH DATABASE ===
 

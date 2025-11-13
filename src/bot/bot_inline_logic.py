@@ -1,4 +1,4 @@
-from src.bot.database_calls import search_memes_in_db
+from bot.database_calls import search_memes_in_db
 
 from telegram import InlineQueryResultPhoto, Update
 from telegram.ext import ContextTypes

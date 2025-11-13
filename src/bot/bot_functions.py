@@ -1,8 +1,8 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from src.bot.database_calls import add_meme_to_db, add_to_favorites, remove_fav
-from src.database.db import Database
+from bot.database_calls import add_meme_to_db, add_to_favorites, remove_fav
+from database.db import Database
 
 async def add_pic(update: Update, context: ContextTypes.DEFAULT_TYPE, is_private: bool, db: Database, ghosts: int):
     if not context.args:
