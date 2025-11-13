@@ -230,7 +230,7 @@ class Database:
             return bool(cur.fetchone()[0])
 
 
-    def _find_favs(self, user_id: int, tags: list[int], conn: sqlite3.Connection) -> list[int]:
+    def _find_favs(self, user_id: int, tags: list[int], conn: sqlite3.Connection) -> list[tuple[int]]:
         cur = conn.cursor()
         if not tags:
             cur.execute(f"""
@@ -278,7 +278,7 @@ class Database:
         return list(set(all_ghosts))
 
 
-    def _find_global(self, user_id: int, tags: list[int], threshold: float, recommendations_len: int, limit:int, conn: sqlite3.Connection) -> list[int]:
+    def _find_global(self, user_id: int, tags: list[int], threshold: float, recommendations_len: int, limit:int, conn: sqlite3.Connection) -> list[tuple[int]]:
         if not tags:
             return []
 
@@ -306,23 +306,35 @@ class Database:
                     break
 
         return result
+    
+    
+    def _return_undefined_pic(self, conn: sqlite3.Connection) -> list[tuple[int]]:
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT id, storage FROM pics WHERE id = 1")
+            res = cur.fetchone()
+            return (res[0], res[1])
 
 
-    def find(self, tg_id: int, tags: list[str], threshold: float, recommendations_len: int, limit: int) -> list[int]:
+    def find(self, tg_id: int, tags: list[str], threshold: float, recommendations_len: int, limit: int) -> list[tuple[int]]:
         with self._connect() as conn:
             user_id = self._get_user_id(tg_id, conn)
 
             tag_ids = []
             for tag in tags:
                 if not self._tag_exists(tag, conn):
-                    return []
+                    continue
                 
                 tag_ids.append(self._get_tag_id(tag, conn))
 
+            undefined_state = []
             favs = self._find_favs(user_id, tag_ids, conn)
             global_sim = self._find_global(user_id, tag_ids, threshold, recommendations_len, limit, conn)
 
-        return favs + global_sim
+            if (tags and not tag_ids):
+                undefined_state = self._return_undefined_pic(conn)
+
+        return undefined_state + favs + global_sim
 
 
     def remove_fav(self, tg_id: int, pic_id: int):
