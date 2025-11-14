@@ -187,18 +187,24 @@ class Database:
     def add_from(self, tg_id: int, pic_id: int):
         with self._connect() as conn:
             cur = conn.cursor()
-
             user_id = self._get_user_id(tg_id=tg_id, conn=conn)
 
             cur.execute("""
-                    INSERT OR IGNORE INTO fav_pics (user_id, pic_id)
-                    SELECT ?, ?
-                    FROM pics
-                    WHERE id = ?
-                    AND (is_private = 0 OR user_id = ?);
-                """, (user_id, pic_id, pic_id, user_id))
+                SELECT 1 FROM pics
+                WHERE id = ?
+                AND (is_private = 0 OR user_id = ?)
+            """, (pic_id, user_id))
+
+            if not cur.fetchone():
+                raise ValueError(f"Изображение с ID {pic_id} не найдено или недоступно")
+
+            cur.execute("""
+                INSERT INTO fav_pics (user_id, pic_id)
+                VALUES (?, ?)
+            """, (user_id, pic_id))
 
             conn.commit()
+
 
 
     def transfer(self, tg_id_from: int, tg_id_to: int):
@@ -233,7 +239,7 @@ class Database:
     def _find_favs(self, user_id: int, tags: list[int], conn: sqlite3.Connection) -> list[tuple[int]]:
         cur = conn.cursor()
         if not tags:
-            cur.execute(f"""
+            cur.execute("""
                     SELECT fp.pic_id, p.storage
                     FROM fav_pics fp
                     JOIN pics p ON fp.pic_id = p.id
@@ -342,9 +348,19 @@ class Database:
             user_id = self._get_user_id(tg_id, conn)
 
             cur = conn.cursor()
+
+            cur.execute("""
+                SELECT 1 FROM fav_pics
+                WHERE user_id = ? AND pic_id = ?
+            """, (user_id, pic_id))
+
+            if not cur.fetchone():
+                raise ValueError(f"Изображение с ID {pic_id} не найдено в избранном")
+
             cur.execute("""
                 DELETE FROM fav_pics
                 WHERE user_id = ? AND pic_id = ?
-            """,(user_id, pic_id))
-            
+            """, (user_id, pic_id))
+
             conn.commit()
+
