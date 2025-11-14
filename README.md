@@ -14,11 +14,6 @@
 * sqlite3 3.51.0
 
 ## Запуск
-
-```bash
-python3 src/main.py
-```
-
 ```bash
 1. Откройте @BotFather
 2. /newbot
@@ -28,7 +23,13 @@ python3 src/main.py
    - /setinline → выберите бота → "Search for memes"
    - /setinlinefeedback → Enabled
 6. Пришлите новый токен
+7. Укажите токен в config.py
 ```
+```bash
+python3 src/main.py
+```
+
+
 
 ## Конфигурация
 
