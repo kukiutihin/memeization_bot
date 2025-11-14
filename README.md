@@ -39,3 +39,4 @@ python3 src/main.py
 * `ghosts_count` — количество скрытых тегов, определяемых для каждого тега. Это самые часто используемые вместе с рассматриваемым теги.
 
 ## Презентация
+https://docs.google.com/presentation/d/1YQhdKm374u4lxY9WgVZqSMdqIrPDgpAl/edit?usp=sharing&ouid=116586733304283444158&rtpof=true&sd=true
