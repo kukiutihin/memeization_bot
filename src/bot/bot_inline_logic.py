@@ -54,7 +54,8 @@ async def inline_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, db:
                 thumbnail_url=meme["thumbnail_url"],
                 title=meme["title"],
                 description=meme["description"],
-                caption=f"{meme['title']}\n{meme['description']}\nТеги: {', '.join(meme['tags'])}\nID: {meme['id']}"
+                caption=f""
+                # caption=f"{meme['title']}\n{meme['description']}\nТеги: {', '.join(meme['tags'])}\nID: {meme['id']}"
             )
         )
     

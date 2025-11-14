@@ -73,15 +73,19 @@ async def global_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, db:
     state = user_state.get(uid, State.MENU) 
 
     if state == State.MENU:
+        MENU
+        
         await menu_handler(update, text, db, ghosts)
 
     elif state == State.FIND:
+        FIND
         await find_handler(update, text, db, ghosts)
 
     # elif state == State.LIBRARY:
     #     await library_handler(update, text, db, ghosts)
 
     elif state == State.FIND_WAITING_TAGS:
+        BACK
         await waiting_tags_handler(update, text, db, ghosts)
     
     # elif state == State.LIBRARY_WAITING_PID:
@@ -96,6 +100,7 @@ async def global_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, db:
         
 
 async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Database, ghosts: int):
+    MENU
     text = update.message.text
     uid = update.effective_user.id
 
@@ -112,6 +117,7 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, db: D
 
 
 async def find_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Database, ghosts: int, tags = []):
+    FIND
     text = update.message.text
     uid = update.effective_user.id
 
@@ -132,6 +138,7 @@ async def find_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, db: D
 
 
 async def waiting_tags_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Database, ghosts: int):
+    BACK
     uid = update.effective_user.id
     text = update.message.text
 
