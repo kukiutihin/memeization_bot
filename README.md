@@ -19,6 +19,17 @@
 python3 src/main.py
 ```
 
+```bash
+1. Откройте @BotFather
+2. /newbot
+3. Имя: TestMemeBot
+4. Username: testmemebot_12345 (ДОЛЖЕН БЫТЬ УНИКАЛЬНЫЙ!)
+5. СРАЗУ после создания:
+   - /setinline → выберите бота → "Search for memes"
+   - /setinlinefeedback → Enabled
+6. Пришлите новый токен
+```
+
 ## Конфигурация
 
 * `token` — токен вашего Telegram-бота.
