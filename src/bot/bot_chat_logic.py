@@ -311,8 +311,8 @@ async def load_wait_bool_handler(update: Update, context: ContextTypes.DEFAULT_T
     )
 
     if success:
-        if is_private:
-            await add_pic_from_pid(update, context, db)
+        # if is_private:
+        #     await add_pic_from_pid(update, context, db)
 
         await update.message.reply_text("Изображение успешно добавлено 🎉", reply_markup=MENU)
     else:

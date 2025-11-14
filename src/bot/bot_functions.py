@@ -41,14 +41,14 @@ async def add_pic(update: Update, context: ContextTypes.DEFAULT_TYPE, is_private
 async def add_pic_from_pid(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Database):
     try:
         meme_id_str = update.message.text 
+        # print(meme_id_str, context)
         meme_id = int(meme_id_str)
         tg_id = update.effective_user.id
-        
         if add_to_favorites(tg_id, meme_id, db):
             await update.message.reply_text("Изображение добавлено в избранные ✅")
         else:
             await update.message.reply_text("Ошибка, возможно id не существует ❌")
-        
+        # print(5)
     except ValueError:
         await update.message.reply_text("Введите корректный ID изображения")
 
