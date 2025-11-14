@@ -16,7 +16,7 @@ def main():
     required_match = 0.2
     recs_len = 10
     ghosts = 10
-    app = Application.builder().token("YOUR_BOT_TOKEN").build()
+    app = Application.builder().token("8458529948:AAEmS-rVnzjTFeh8Ri5QVefx_I9dAEnRPO8").build()
 
     async def message_router(update, context):
         await global_handler(update, context, db, ghosts)
